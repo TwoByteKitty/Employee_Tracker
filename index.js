@@ -28,7 +28,7 @@ function addOptions(){
             ]
         })
         .then(function(answer) {
-
+            console.log(answer.addChoice);
         })
 };
 
@@ -45,7 +45,7 @@ function viewOptions(){
         ]
     })
     .then(function(answer) {
-        
+        console.log(answer.viewChoice);
     })
 };
 
@@ -61,7 +61,7 @@ function updateOptions(){
             ]
         })
         .then(function(answer) {
-            
+            console.log(answer.updateChoice);
         })
 };
 
@@ -78,7 +78,7 @@ function deleteOptions(){
             ]
         })
         .then(function(answer) {
-            
+            console.log(answer.deleteChoice);
         })
 };
 
