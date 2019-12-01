@@ -22,6 +22,10 @@ const EMPLOYEES_TABLE = "employee";
 
 
 const selectAllFrom = (table) => (`SELECT * FROM ${table};`);
+const selectAllDept = () => (`SELECT id AS "ID", dept_name AS "Department" FROM ${DEPARTMENTS_TABLE};`);
+const selectAllRoles = () => (`SELECT role.id AS "Role ID", role.title AS "Job Title", role.salary AS "Salary", dept.dept_name AS "Department" 
+FROM ${ROLES_TABLE} AS role JOIN 
+${DEPARTMENTS_TABLE} AS  dept WHERE role.dept_id = dept.id;`);
 
 //Select All employees
 const selectAllEmployees = () => (`SELECT emp.id AS "Employee ID", emp.first_name AS "First Name", emp.last_name AS "Last Name", roles.title AS "Job Title", roles.salary AS "Salary", roles.dept_name AS "Department" 
@@ -33,6 +37,8 @@ const selectAllEmployees = () => (`SELECT emp.id AS "Employee ID", emp.first_nam
 
 //Insert Department SQL Statement
 const insertDepartment = (value) => (`INSERT INTO ${DEPARTMENTS_TABLE}(dept_name) VALUES('${value}');`);
+
+const  updateEmployee = (employee) => (`UPDATE ${EMPLOYEES_TABLE} SET role_id = ${employee.role_id} WHERE id = ${employee.empl_id};`);
 
 //Insert Employee SQL Statement
 const insertEmployee = (employee) => (`INSERT INTO ${EMPLOYEES_TABLE}(first_name, last_name, role_id) VALUES('${employee.first_name}', '${employee.last_name}', '${employee.role_id}');`);
@@ -87,7 +93,7 @@ function deptOptions() {
 };
 
 function viewDept() {
-    const query = selectAllFrom(DEPARTMENTS_TABLE);
+    const query = selectAllDept();
     connectToDB.query(query, outputResults);
 };
 
@@ -180,7 +186,43 @@ function viewEmpl() {
     connectToDB.query(emplQuery, outputResults);
 };
 
+function getEmplChoice(callback) {
+    const query = selectAllFrom(EMPLOYEES_TABLE);
+    connectToDB.query(query, callback);
+};
+
+function updateEmpl(employeeToUpdate) {
+    const employeeUpdateStmt = updateEmployee(employeeToUpdate);
+    connectToDB.query(employeeUpdateStmt, outputResults);
+};
+
+function emplRolePrompt(emplRes, roleRes) {
+    let updateEmplChoice = emplRes.map((emplObj) => ({ short: `${emplObj.last_name}, ${emplObj.first_name}`, name: `${emplObj.last_name}, ${emplObj.first_name}`, value: emplObj.id }));
+    let updateRoleChoice = roleRes.map((roleObj) => ({ short: roleObj.title, name: roleObj.title, value: roleObj.id }));
+    const promptObj = [{
+        type: "list",
+        name: "empl_id",
+        message: "Choose which employee you would like to modify:",
+        choices: updateEmplChoice
+    },
+    {
+        type: "list",
+        name: "role_id",
+        message: "Choose the employee's updated role:",
+        choices: updateRoleChoice
+    }
+   ]
+    inquirer.prompt(promptObj).then(updateEmpl);
+}
+
 function updateEmplRole() {
+    let roleChoices;
+    getRoleChoices((err, res) => {
+        roleChoices = res;
+        getEmplChoice((err, res) => {
+            emplRolePrompt(res, roleChoices);
+        });
+    });
 
 };
 
@@ -216,7 +258,7 @@ function roleOptions() {
 };
 
 function viewRoles() {
-    const queryTxt = selectAllFrom(ROLES_TABLE);
+    const queryTxt = selectAllRoles();
     connectToDB.query(queryTxt, outputResults);
 };
 
