@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const inquirer = require("inquirer");
 
 
-const connection = mysql.createConnection({
+const connectToDB = mysql.createConnection({
     host: "localhost",
     port: 3306,
     user: "root",
@@ -10,122 +10,76 @@ const connection = mysql.createConnection({
     database: "employeeTrack_db"
 });
 
-connection.connect(function (err) {
+connectToDB.connect(function (err) {
     if (err) throw err;
     start();
 });
 
-function addTableEntry(answer) {
-    console.log(answer.tblChoice);
-    let tblName;
-    let itemToInsert = {};
-    let prompt;
-    switch (answer.tblChoice) {
-        case "Department":
-            tblName = "department";
-            prompt = {
-                type: "input",
-                name: "deptName",
-                message: "What is the name of the department to add?",
-            };
-            inquirer
-                .prompt(prompt).then((answer) => {
-                    itemToInsert.dept_name = answer.deptName;
-                }
-                );
-            break;
-        case "Role":
-            tblName = "employee_roles";
-            prompt = [{
-                type: "input",
-                name: "tblChoice",
-                message: "What would you like to add?",
-                choices: [
-                    "Department",
-                    "Role",
-                    "Employee"
-                ]
-            }];
-            inquirer
-                .prompt(prompt).then(
+const DEPARTMENTS_TABLE = "department";
+const ROLES_TABLE = "employee_role";
+const EMPLOYEES_TABLE = "employee";
 
-                );
-            break;
-        case "Employee":
-            tblName = "employee";
-            prompt = [{
-                type: "input",
-                name: "tblChoice",
-                message: "What would you like to add?",
-                choices: [
-                    "Department",
-                    "Role",
-                    "Employee"
-                ]
-            }]
-            inquirer
-                .prompt(prompt).then(
+//Select All for departments and roles
+const selectAllFrom = (table) => (`SELECT * FROM ${table};`);
 
-                );
-            break;
-        default:
-            console.log("Wut??");
-            break;
+//function selectAllFrom(table) {
+//    return `SELECT * FROM ${table};`
+//  }
+
+//Select All employees
+const selectAllEmployees = () => (``);
+
+//Insert Department SQL Statement
+const insertDepartment = (value) => (`INSERT INTO ${DEPARTMENTS_TABLE}(dept_name) VALUES('${value}');`);
+//Insert Employee SQL Statement
+const insertEmployee = (employee) => (`INSERT INTO ${EMPLOYEES_TABLE}(first_name, last_name, role_id) VALUES('${employee.first_name}', '${employee.last_name}', '${employee.role_id}');`);
+//Insert Role SQL Statement
+const insertRole = (role) => (`INSERT INTO ${ROLES_TABLE}(title, salary, dept_id) VALUES("${role.title}", "${role.salary}", "${role.dept_id}");`);
+
+
+//Debugging Callback
+function debugQuery(error, results) {
+    if (error) {
+        console.log("Error");
+        console.log("=========================");
+        console.log(error);
+        console.log("=========================");
+        throw error;
     }
-
-    connection.query(
-        `INSERT INTO ${tblName} SET ?`,
-        itemToInsert,
-        function (err) {
-            if (err) {
-                throw err;
-            }
-            console.log(`Your ${answer.tblChoice} was added to ${tblName} successfully!`);
-            start();
-        }
-
-    );
+    console.log("Results");
+    console.log("=========================");
+    console.log(results);
+    console.log("=========================");
+    start();
 };
 
-function addOptions() {
+//Departments
+function deptOptions() {
     inquirer
         .prompt({
             type: "list",
-            name: "tblChoice",
-            message: "What would you like to add?",
+            name: "actionDept",
+            message: "What action would you like to take regarding Departments?",
             choices: [
-                "Department",
-                "Role",
-                "Employee"
-            ]
-        })
-        .then(addTableEntry);
-};
-
-function viewOptions() {
-    inquirer
-        .prompt({
-            type: "list",
-            name: "viewChoice",
-            message: "What would you like to view?",
-            choices: [
-                "Department",
-                "Role",
-                "Employee"
+                "Add",
+                "View",
+                "Return to Main"
             ]
         })
         .then(function (answer) {
-            console.log(answer.viewChoice);
-            switch (answer.viewChoice) {
-                case "Department":
+            console.log("Department Action");
+            console.log("=========================");
+            console.log(answer.actionDept);
+            console.log("=========================");
+            switch (answer.actionDept) {
+                case "Add":
+                    getDeptToAdd();
+                    break;
+                case "View":
                     viewDept();
                     break;
-                case "Role":
-                    viewRole();
-                    break;
-                case "Employee":
-                    viewEmpl();
-                    break;
+                case "Return to Main":
+                    start();
                 default:
                     console.log("Wut??");
                     break;
@@ -133,70 +87,246 @@ function viewOptions() {
         })
 };
 
-function updateOptions() {
+
+function viewDept() {
+    const query = selectAllFrom(DEPARTMENTS_TABLE);
+    console.log("Query");
+    console.log("=========================");
+    console.log(query);
+    console.log("=========================");
+    connectToDB.query(query, debugQuery);
+};
+
+function getDeptToAdd() {
+    const promptObj = {
+        type: "input",
+        name: "newDeptName",
+        message: "Enter new department name:"
+    };
+    inquirer.prompt(promptObj).then(addDept);
+};
+
+function addDept(userRes) {
+    const departmentToAdd = userRes.newDeptName;
+    const deptQuery = insertDepartment(departmentToAdd);
+    console.log("Adding Department");
+    console.log("=========================");
+    console.log(`Adding ${departmentToAdd} to ${DEPARTMENTS_TABLE}`);
+    console.log(deptQuery);
+    console.log("=========================");
+    connectToDB.query(deptQuery, debugQuery);
+};
+
+//Employees
+function empOptions() {
     inquirer
         .prompt({
             type: "list",
-            name: "updateChoice",
-            message: "What would you like to update?",
+            name: "actionEmp",
+            message: "What action would you like to take regarding employees?",
             choices: [
-                "Employee Role",
-                "Employee Manager"
+                "Add",
+                "View",
+                "Update Role",
+                "Return to Main"
             ]
         })
         .then(function (answer) {
-            console.log(answer.updateChoice);
+            console.log("Employee Action");
+            console.log("=========================");
+            console.log(answer.actionEmp);
+            console.log("=========================");
+            switch (answer.actionEmp) {
+                case "Add":
+                    addEmpl();
+                    break;
+                case "View":
+                    viewEmpl();
+                    break;
+                case "Update Role":
+                    updateEmplRole();
+                    break;
+                case "Return to Main":
+                    start();
+                default:
+                    console.log("Wut??");
+                    break;
+            }
         })
 };
 
-function deleteOptions() {
+function addEmpl() {
+    console.log("Adding Employee");
+    console.log("=========================");
+    console.log(`Adding ${employeeToAdd} to ${EMPLOYEES_TABLE}`);
+    console.log("=========================");
+   //const query = insertEmployee(employeeToAdd);
+  
+    connectToDB.query(query, emplPrompt);
+};
+
+const emplPrompt = (err, results) => {
+    let choiceArray = results.map((roleObj) => ({ short: roleObj.name, name: roleObj.name, value: roleObj.id }));
+    const promptObj = [{
+        type: "input",
+        name: "first_name",
+        message: "Enter employee's first name:"
+    },
+    {
+        type: "input",
+        name: "last_name",
+        message: "Enter new employee's last name:"
+    },
+    {
+        type: "list",
+        name: "role_id",
+        message: "Choose employee's role:",
+        choices: choiceArray
+    }]
+    inquirer.prompt(promptObj).then(addEmpl);
+}
+
+function viewEmpl() {
+    const emplQuery = selectAllFrom(EMPLOYEES_TABLE);
+    console.log("Query");
+    console.log("=========================");
+    console.log(emplQuery);
+    console.log("=========================");
+    connectToDB.query(emplQuery, debugQuery);
+};
+
+function updateEmplRole() {
+
+};
+
+
+//Roles
+function roleOptions() {
     inquirer
         .prompt({
             type: "list",
-            name: "deleteChoice",
-            message: "What would you like to delete?",
+            name: "actionRole",
+            message: "What action would you like to take regarding Roles?",
             choices: [
-                "Department",
-                "Role",
-                "Employee"
+                "Add",
+                "View",
+                "Return to Main"
             ]
         })
         .then(function (answer) {
-            console.log(answer.deleteChoice);
+            console.log("Role Action");
+            console.log("=========================");
+            console.log(answer.actionRole);
+            console.log("=========================");
+            switch (answer.actionRole) {
+                case "Add":
+                    getRoleToAdd();
+                    break;
+                case "View":
+                    viewRoles();
+                    break;
+                case "Return to Main":
+                    start();
+                default:
+                    console.log("Wut??");
+                    break;
+            }
         })
 };
 
+function viewRoles() {
+    const queryTxt = selectAllFrom(ROLES_TABLE);
+    console.log("Query");
+    console.log("=========================");
+    console.log(queryTxt);
+    console.log("=========================");
+    connectToDB.query(queryTxt, debugQuery);
+};
 
+function getDeptChoices(callback) {
+    const query = selectAllFrom(DEPARTMENTS_TABLE);
+    connectToDB.query(query, callback);
+}
+
+function getRoleToAdd() {
+    const showPrompt = (err, results) => {
+        let choiceArray = results.map((deptObj) => ({ short: deptObj.dept_name, name: deptObj.dept_name, value: deptObj.id }));
+        const promptObj = [{
+            type: "input",
+            name: "title",
+            message: "Enter new role title:"
+        },
+        {
+            type: "input",
+            name: "salary",
+            message: "Enter new role salary:"
+        },
+        {
+            type: "list",
+            name: "dept_id",
+            message: "Choose department of new role:",
+            choices: choiceArray
+        }]
+        inquirer.prompt(promptObj).then(addRole);
+    }
+    getDeptChoices(showPrompt);
+
+};
+
+function addRole(roleToAdd) {
+    console.log("Adding Role");
+    console.log("=========================");
+    console.log(`Adding to ${ROLES_TABLE}`);
+    console.log("=========================");
+    const createRoleStmt = insertRole(roleToAdd);
+    connectToDB.query(createRoleStmt, debugQuery);
+};
+
+
+//Start App
 function start() {
     inquirer
         .prompt({
             type: "list",
-            name: "actionChoice",
-            message: "What would you like to do?",
+            name: "subjectChoice",
+            message: "What would you like to modify?",
             choices: [
-                "Add",
-                "View",
-                "Update",
-                "Delete"
+                "Department",
+                "Employee",
+                "Role",
+                "Exit"
             ]
         })
         .then(function (answer) {
-            switch (answer.actionChoice) {
-                case "Add":
-                    addOptions();
+            switch (answer.subjectChoice) {
+                case "Department":
+                    deptOptions();
                     break;
-                case "View":
-                    viewOptions();
+                case "Employee":
+                    empOptions();
                     break;
-                case "Update":
-                    updateOptions();
+                case "Role":
+                    roleOptions();
                     break;
-                case "Delete":
-                    deleteOptions();
-                    break;
+                case "Exit":
+                    process.exit(0);
                 default:
                     console.log("Wut??");
                     break;
             }
         });
 };
+
+
+/*   connectToDB.query(
+       `INSERT INTO ${tblName} SET ?`,
+       itemToInsert,
+       function (err) {
+           if (err) {
+               throw err;
+           }
+           console.log(`Your ${answer.tblChoice} was added to ${tblName} successfully!`);
+           start();
+       }
+
+   ); */
