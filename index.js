@@ -1,5 +1,6 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
+const cTable = require("console.table");
 
 
 const connectToDB = mysql.createConnection({
@@ -19,26 +20,28 @@ const DEPARTMENTS_TABLE = "department";
 const ROLES_TABLE = "employee_role";
 const EMPLOYEES_TABLE = "employee";
 
-//Select All for departments and roles
+
 const selectAllFrom = (table) => (`SELECT * FROM ${table};`);
 
-//function selectAllFrom(table) {
-//    return `SELECT * FROM ${table};`
-//  }
-
 //Select All employees
-const selectAllEmployees = () => (``);
+const selectAllEmployees = () => (`SELECT emp.id AS "Employee ID", emp.first_name AS "First Name", emp.last_name AS "Last Name", roles.title AS "Job Title", roles.salary AS "Salary", roles.dept_name AS "Department" 
+                                    FROM ${EMPLOYEES_TABLE} AS emp JOIN 
+                                       (SELECT role.id, role.title, role.salary, dept.dept_name 
+                                        FROM ${ROLES_TABLE} AS role JOIN 
+                                        ${DEPARTMENTS_TABLE} AS  dept WHERE role.dept_id = dept.id) AS roles 
+                                    WHERE emp.role_id = roles.id;`);
 
 //Insert Department SQL Statement
 const insertDepartment = (value) => (`INSERT INTO ${DEPARTMENTS_TABLE}(dept_name) VALUES('${value}');`);
+
 //Insert Employee SQL Statement
 const insertEmployee = (employee) => (`INSERT INTO ${EMPLOYEES_TABLE}(first_name, last_name, role_id) VALUES('${employee.first_name}', '${employee.last_name}', '${employee.role_id}');`);
+
 //Insert Role SQL Statement
 const insertRole = (role) => (`INSERT INTO ${ROLES_TABLE}(title, salary, dept_id) VALUES("${role.title}", "${role.salary}", "${role.dept_id}");`);
 
-
-//Debugging Callback
-function debugQuery(error, results) {
+//logging results callback
+function outputResults(error, results) {
     if (error) {
         console.log("Error");
         console.log("=========================");
@@ -48,7 +51,7 @@ function debugQuery(error, results) {
     }
     console.log("Results");
     console.log("=========================");
-    console.log(results);
+    console.table(results);
     console.log("=========================");
     start();
 };
@@ -67,10 +70,6 @@ function deptOptions() {
             ]
         })
         .then(function (answer) {
-            console.log("Department Action");
-            console.log("=========================");
-            console.log(answer.actionDept);
-            console.log("=========================");
             switch (answer.actionDept) {
                 case "Add":
                     getDeptToAdd();
@@ -87,14 +86,9 @@ function deptOptions() {
         })
 };
 
-
 function viewDept() {
     const query = selectAllFrom(DEPARTMENTS_TABLE);
-    console.log("Query");
-    console.log("=========================");
-    console.log(query);
-    console.log("=========================");
-    connectToDB.query(query, debugQuery);
+    connectToDB.query(query, outputResults);
 };
 
 function getDeptToAdd() {
@@ -109,12 +103,7 @@ function getDeptToAdd() {
 function addDept(userRes) {
     const departmentToAdd = userRes.newDeptName;
     const deptQuery = insertDepartment(departmentToAdd);
-    console.log("Adding Department");
-    console.log("=========================");
-    console.log(`Adding ${departmentToAdd} to ${DEPARTMENTS_TABLE}`);
-    console.log(deptQuery);
-    console.log("=========================");
-    connectToDB.query(deptQuery, debugQuery);
+    connectToDB.query(deptQuery, outputResults);
 };
 
 //Employees
@@ -132,13 +121,9 @@ function empOptions() {
             ]
         })
         .then(function (answer) {
-            console.log("Employee Action");
-            console.log("=========================");
-            console.log(answer.actionEmp);
-            console.log("=========================");
             switch (answer.actionEmp) {
                 case "Add":
-                    addEmpl();
+                    getEmployeeToAdd();
                     break;
                 case "View":
                     viewEmpl();
@@ -155,18 +140,13 @@ function empOptions() {
         })
 };
 
-function addEmpl() {
-    console.log("Adding Employee");
-    console.log("=========================");
-    console.log(`Adding ${employeeToAdd} to ${EMPLOYEES_TABLE}`);
-    console.log("=========================");
-   //const query = insertEmployee(employeeToAdd);
-  
-    connectToDB.query(query, emplPrompt);
+function getRoleChoices(callback) {
+    const query = selectAllFrom(ROLES_TABLE);
+    connectToDB.query(query, callback);
 };
 
-const emplPrompt = (err, results) => {
-    let choiceArray = results.map((roleObj) => ({ short: roleObj.name, name: roleObj.name, value: roleObj.id }));
+function emplPrompt(err, results) {
+    let choiceArray = results.map((roleObj) => ({ short: roleObj.title, name: roleObj.title, value: roleObj.id }));
     const promptObj = [{
         type: "input",
         name: "first_name",
@@ -186,13 +166,18 @@ const emplPrompt = (err, results) => {
     inquirer.prompt(promptObj).then(addEmpl);
 }
 
+function getEmployeeToAdd() {
+    getRoleChoices(emplPrompt);
+}
+
+function addEmpl(employeeToAdd) {
+    const employeeAddStmt = insertEmployee(employeeToAdd);
+    connectToDB.query(employeeAddStmt, outputResults);
+};
+
 function viewEmpl() {
-    const emplQuery = selectAllFrom(EMPLOYEES_TABLE);
-    console.log("Query");
-    console.log("=========================");
-    console.log(emplQuery);
-    console.log("=========================");
-    connectToDB.query(emplQuery, debugQuery);
+    const emplQuery = selectAllEmployees();
+    connectToDB.query(emplQuery, outputResults);
 };
 
 function updateEmplRole() {
@@ -214,10 +199,6 @@ function roleOptions() {
             ]
         })
         .then(function (answer) {
-            console.log("Role Action");
-            console.log("=========================");
-            console.log(answer.actionRole);
-            console.log("=========================");
             switch (answer.actionRole) {
                 case "Add":
                     getRoleToAdd();
@@ -236,11 +217,7 @@ function roleOptions() {
 
 function viewRoles() {
     const queryTxt = selectAllFrom(ROLES_TABLE);
-    console.log("Query");
-    console.log("=========================");
-    console.log(queryTxt);
-    console.log("=========================");
-    connectToDB.query(queryTxt, debugQuery);
+    connectToDB.query(queryTxt, outputResults);
 };
 
 function getDeptChoices(callback) {
@@ -274,12 +251,8 @@ function getRoleToAdd() {
 };
 
 function addRole(roleToAdd) {
-    console.log("Adding Role");
-    console.log("=========================");
-    console.log(`Adding to ${ROLES_TABLE}`);
-    console.log("=========================");
     const createRoleStmt = insertRole(roleToAdd);
-    connectToDB.query(createRoleStmt, debugQuery);
+    connectToDB.query(createRoleStmt, outputResults);
 };
 
 
@@ -317,16 +290,3 @@ function start() {
         });
 };
 
-
-/*   connectToDB.query(
-       `INSERT INTO ${tblName} SET ?`,
-       itemToInsert,
-       function (err) {
-           if (err) {
-               throw err;
-           }
-           console.log(`Your ${answer.tblChoice} was added to ${tblName} successfully!`);
-           start();
-       }
-
-   ); */
